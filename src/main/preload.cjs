@@ -23,6 +23,11 @@ const api = {
   compact: () => ipcRenderer.invoke('agent:compact'),
   setWorkingDir: () => ipcRenderer.invoke('agent:set-working-dir'),
   quit: () => ipcRenderer.invoke('app:quit'),
+  // App features
+  getVersion: () => ipcRenderer.invoke('app:get-version'),
+  exportChat: (format) => ipcRenderer.invoke('app:export-chat', format),
+  getSessionHistory: () => ipcRenderer.invoke('app:get-session-history'),
+  restoreSession: (sessionFile) => ipcRenderer.invoke('app:restore-session', sessionFile),
   // Event listeners
   onSessionEvent: (callback) => {
     const handler = (_e, data) => callback(data);
@@ -64,6 +69,11 @@ const api = {
     const handler = () => callback();
     ipcRenderer.on('show-about', handler);
     return () => ipcRenderer.removeListener('show-about', handler);
+  },
+  onUpdateAvailable: (callback) => {
+    const handler = (_e, data) => callback(data);
+    ipcRenderer.on('app:update-available', handler);
+    return () => ipcRenderer.removeListener('app:update-available', handler);
   },
 };
 

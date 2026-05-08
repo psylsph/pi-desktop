@@ -30,6 +30,16 @@
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
           <span>Open Project</span>
         </button>
+        <div class="sidebar-btn-row">
+          <button id="btn-export-md" class="sidebar-btn sidebar-btn-sm" title="Export as Markdown">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>Export .md</span>
+          </button>
+          <button id="btn-export-json" class="sidebar-btn sidebar-btn-sm" title="Export as JSON">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>Export .json</span>
+          </button>
+        </div>
       </div>
 
       <div class="sidebar-section">
@@ -56,9 +66,21 @@
         </button>
       </div>
 
+      <div class="sidebar-section">
+        <label class="sidebar-label">Session History</label>
+        <div id="session-history" class="session-history">
+          <div class="session-history-empty">No previous sessions</div>
+        </div>
+      </div>
+
       <div class="sidebar-footer">
         <div id="model-info" class="model-info">No model</div>
         <div id="session-info" class="session-info">No session</div>
+        <button id="btn-theme-toggle" class="sidebar-btn theme-toggle-btn" title="Toggle light/dark theme">
+          <svg id="theme-icon-dark" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg id="theme-icon-light" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span>Toggle Theme</span>
+        </button>
       </div>
     </aside>
 
@@ -90,6 +112,19 @@
           <h2>Welcome to Pi Desktop</h2>
           <p>Your cross-platform coding agent. Type a message below to get started.</p>
           <p class="hint">Use <kbd>Shift+Enter</kbd> for new lines, <kbd>Enter</kbd> to send, <kbd>Escape</kbd> to abort.</p>
+          <p class="hint">Drag &amp; drop files onto this area to include their paths.</p>
+        </div>
+      </div>
+
+      <!-- Drop overlay for drag-and-drop files -->
+      <div id="drop-overlay" class="drop-overlay" style="display:none;">
+        <div class="drop-overlay-content">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <p>Drop files here</p>
         </div>
       </div>
 
@@ -116,6 +151,13 @@
 
     <!-- Toast notifications -->
     <div id="toast-container" class="toast-container"></div>
+
+    <!-- Update notification banner -->
+    <div id="update-banner" class="update-banner" style="display:none;">
+      <span id="update-banner-text">A new version is available!</span>
+      <a id="update-banner-link" href="#" class="update-banner-link">View Release</a>
+      <button id="update-banner-close" class="update-banner-close">&times;</button>
+    </div>
   </div>
 
   <script src="renderer.js"></script>

@@ -8,10 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Multiple workspace support
-- Custom themes
-- Export conversations
 - Plugin system
+
+## [0.3.0] - 2025-05-08
+
+### Added
+- **Enhanced markdown rendering** — Headers (#, ##, ###, ####), links, unordered lists, blockquotes, horizontal rules
+- **Conversation export** — Export chats as Markdown or JSON via sidebar buttons and File menu
+- **Light theme** — Toggle between dark (Tokyo Night) and light theme, persisted in localStorage
+- **Session history** — Browse and restore previous sessions from the sidebar
+- **Auto-update check** — Checks GitHub for new versions on launch, shows notification banner
+- **Drag-and-drop files** — Drop files onto the message area to include their paths in prompts
+- **Code block improvements** — Line numbers and copy-to-clipboard button on all code blocks
+- **Sound notifications** — Audio feedback when agent completes a task or encounters an error
+- **Window state persistence** — Remembers window size, position, and maximized state across launches
+- **About dialog reads actual version** — No longer hardcoded, uses Electron's app.getVersion()
+- **Update notification banner** — Non-intrusive banner when a new version is available
+- **CI workflow improvements** — Fixed package-lock.json sync, added Linux deps, fail-fast: false, contents: write permission
+
+### Changed
+- Input wrapper vertical alignment changed from `flex-end` to `center` for better visual balance
+- About dialog copyright year is now dynamic
 
 ## [0.2.0] - 2025-05-08
 
@@ -61,6 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pull request template
 - MIT License
 
-[Unreleased]: https://github.com/psylsph/pi-desktop/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/psylsph/pi-desktop/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/psylsph/pi-desktop/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/psylsph/pi-desktop/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/psylsph/pi-desktop/releases/tag/v0.1.0

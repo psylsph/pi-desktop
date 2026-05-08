@@ -158,6 +158,10 @@ export const IPC = {
   COMPACT: "agent:compact",
   QUIT: "app:quit",
   DEBUG: "app:debug",
+  GET_VERSION: "app:get-version",
+  EXPORT_CHAT: "app:export-chat",
+  GET_SESSION_HISTORY: "app:get-session-history",
+  RESTORE_SESSION: "app:restore-session",
 
   // Main → Renderer
   SESSION_EVENT: "session:event",
@@ -165,4 +169,5 @@ export const IPC = {
   MESSAGES_UPDATE: "session:messages",
   MODELS_UPDATE: "session:models",
   STATUS_UPDATE: "session:status",
+  UPDATE_AVAILABLE: "app:update-available",
 } as const;

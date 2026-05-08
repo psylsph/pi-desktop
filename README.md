@@ -13,13 +13,20 @@
 ## ✨ Features
 
 - 🤖 **Chat interface** — Send prompts and receive streaming responses with markdown rendering
+- 📝 **Rich markdown** — Headers, links, lists, blockquotes, code blocks with line numbers & copy button
 - 🧠 **Thinking blocks** — Collapsible display of agent reasoning (when using reasoning models)
 - 🔧 **Tool call visualization** — Real-time streaming of tool executions with status indicators (running, success, error)
 - 🎯 **Model selector** — Browse and switch between available models grouped by provider
 - ⚙️ **Thinking level controls** — Adjust agent thinking depth (off, low, medium, high)
-- 💾 **Session management** — Create new sessions, compact context, and manage conversation history
+- 💾 **Session management** — Create new sessions, compact context, restore previous sessions
+- 📜 **Session history** — Browse and restore previous sessions from the sidebar
+- 📤 **Conversation export** — Export chats as Markdown or JSON
 - 📁 **Project selector** — Choose a working directory via native OS dialog
-- 🌙 **Dark theme** — Tokyo Night-inspired color scheme
+- 🌙☀️ **Dark & light themes** — Tokyo Night dark theme + light theme, toggle and persisted
+- 🖱️ **Drag & drop files** — Drop files onto the chat to include paths in prompts
+- 🔔 **Sound notifications** — Audio feedback when agent completes tasks or errors
+- 🪟 **Window persistence** — Remembers window size, position, and state across launches
+- 🔄 **Auto-update checks** — Checks for new versions on launch with notification banner
 - ⌨️ **Keyboard shortcuts** — Enter to send, Shift+Enter for newlines, Escape to abort
 - 🔔 **Toast notifications** — Non-intrusive feedback for state changes and errors
 

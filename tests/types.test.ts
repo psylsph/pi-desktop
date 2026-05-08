@@ -29,6 +29,14 @@ describe("IPC channels", () => {
     expect(IPC.STATUS_UPDATE).toBe("session:status");
   });
 
+  it("has new feature channels", () => {
+    expect(IPC.GET_VERSION).toBe("app:get-version");
+    expect(IPC.EXPORT_CHAT).toBe("app:export-chat");
+    expect(IPC.GET_SESSION_HISTORY).toBe("app:get-session-history");
+    expect(IPC.RESTORE_SESSION).toBe("app:restore-session");
+    expect(IPC.UPDATE_AVAILABLE).toBe("app:update-available");
+  });
+
   it("has no duplicate channel names", () => {
     const values = Object.values(IPC);
     const unique = new Set(values);

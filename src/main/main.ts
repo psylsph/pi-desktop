@@ -13,6 +13,8 @@ import {
   type BrowserWindow as BrowserWindowType,
 } from "electron";
 import * as path from "node:path";
+import * as fs from "node:fs";
+import * as os from "node:os";
 import {
   AuthStorage,
   createAgentSession,
@@ -35,7 +37,60 @@ let workingDir = app.getPath("home");
 let authStorage: ReturnType<typeof AuthStorage.create> | null = null;
 let modelRegistry: ModelRegistryType | null = null;
 
-// ─── Window creation ─────────────────────────────────────────────────
+// ─── Window state persistence ────────────────────────────────────────
+
+interface WindowState {
+  x?: number;
+  y?: number;
+  width: number;
+  height: number;
+  isMaximized: boolean;
+}
+
+function getWindowStatePath(): string {
+  return path.join(app.getPath("userData"), "window-state.json");
+}
+
+function loadWindowState(): WindowState {
+  try {
+    const data = fs.readFileSync(getWindowStatePath(), "utf-8");
+    return JSON.parse(data);
+  } catch {
+    return { width: 1100, height: 800, isMaximized: false };
+  }
+}
+
+function saveWindowState(state: WindowState): void {
+  try {
+    fs.mkdirSync(path.dirname(getWindowStatePath()), { recursive: true });
+    fs.writeFileSync(getWindowStatePath(), JSON.stringify(state));
+  } catch {
+    // non-critical
+  }
+}
+
+// ─── Sound playback ──────────────────────────────────────────────────
+
+function playSound(name: "complete" | "error"): void {
+  try {
+    // Use the system bell / notification sound
+    if (process.platform === "darwin") {
+      const sound = name === "complete" ? "Glass" : "Basso";
+      import("node:child_process").then(({ exec }) => {
+        exec(`afplay /System/Library/Sounds/${sound}.aiff`);
+      });
+    } else if (process.platform === "linux") {
+      import("node:child_process").then(({ exec }) => {
+        exec("which paplay && paplay /usr/share/sounds/freedesktop/stereo/bell.oga 2>/dev/null || true");
+      });
+    }
+    // Windows: no simple built-in; renderer can handle it
+  } catch {
+    // non-critical
+  }
+}
+
+// ─── Menu creation ───────────────────────────────────────────────────
 
 function createMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [
@@ -52,7 +107,6 @@ function createMenu() {
             }
           },
         },
-        { type: "separator" },
         {
           label: "Open Project...",
           accelerator: "CmdOrCtrl+O",
@@ -68,6 +122,23 @@ function createMenu() {
                 await initSession(workingDir);
                 sendStatus("ready", `Working directory: ${workingDir}`);
               }
+            }
+          },
+        },
+        { type: "separator" },
+        {
+          label: "Export Chat as Markdown",
+          click: async () => {
+            if (mainWindow) {
+              await handleExportChat("markdown");
+            }
+          },
+        },
+        {
+          label: "Export Chat as JSON",
+          click: async () => {
+            if (mainWindow) {
+              await handleExportChat("json");
             }
           },
         },
@@ -187,31 +258,75 @@ function createMenu() {
 }
 
 function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1100,
-    height: 800,
+  const savedState = loadWindowState();
+
+  const options: Electron.BrowserWindowConstructorOptions = {
+    width: savedState.width,
+    height: savedState.height,
     minWidth: 600,
     minHeight: 400,
     title: "Pi Desktop",
     backgroundColor: "#1a1b26",
     webPreferences: {
-      // Inline preload to test if file loading is the issue
       preload: path.join(import.meta.dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
     },
-  });
+  };
+
+  if (savedState.x !== undefined && savedState.y !== undefined) {
+    options.x = savedState.x;
+    options.y = savedState.y;
+  }
+
+  mainWindow = new BrowserWindow(options);
+
+  if (savedState.isMaximized) {
+    mainWindow.maximize();
+  }
 
   mainWindow.loadFile(path.join(import.meta.dirname, "renderer", "index.html"));
 
+  // Persist window state on changes
+  const saveDebounce = (() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    return () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(persistWindowState, 500);
+    };
+  })();
+
+  mainWindow.on("resize", saveDebounce);
+  mainWindow.on("move", saveDebounce);
+  mainWindow.on("maximize", saveDebounce);
+  mainWindow.on("unmaximize", saveDebounce);
+
   mainWindow.on("closed", () => {
+    persistWindowState();
     mainWindow = null;
   });
 }
 
+function persistWindowState(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    const bounds = mainWindow.getBounds();
+    const isMaximized = mainWindow.isMaximized();
+    saveWindowState({
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height,
+      isMaximized,
+    });
+  } catch {
+    // ignore
+  }
+}
+
 // ─── Agent lifecycle ─────────────────────────────────────────────────
 
-async function initSession(cwd: string) {
+async function initSession(cwd: string, sessionFile?: string) {
   // Tear down previous
   if (unsubscribe) {
     unsubscribe();
@@ -225,6 +340,7 @@ async function initSession(cwd: string) {
   authStorage = AuthStorage.create();
   modelRegistry = ModelRegistry.create(authStorage);
   const settingsManager = SettingsManager.create(cwd);
+  const sessionManager = SessionManager.create(cwd);
 
   // Find an available model before creating the session
   const available = await modelRegistry.getAvailable();
@@ -236,7 +352,8 @@ async function initSession(cwd: string) {
     authStorage,
     modelRegistry,
     settingsManager,
-    sessionManager: SessionManager.create(cwd),
+    sessionManager,
+    ...(sessionFile ? { sessionFile } : {}),
   });
 
   session = result.session;
@@ -276,6 +393,7 @@ function forwardEvent(event: Record<string, unknown> & { type: string }) {
     case "agent_end":
       sendStatus("ready", "Ready");
       pushState();
+      playSound("complete");
       break;
     case "tool_execution_start":
       sendStatus("tool", `Running: ${event.toolName}`);
@@ -285,6 +403,9 @@ function forwardEvent(event: Record<string, unknown> & { type: string }) {
       break;
     case "compaction_end":
       sendStatus("ready", "Compaction complete");
+      break;
+    case "error":
+      playSound("error");
       break;
   }
 }
@@ -334,6 +455,142 @@ async function pushAllModels() {
 function sendStatus(status: string, text: string) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   mainWindow.webContents.send(IPC.STATUS_UPDATE, { status, text });
+}
+
+// ─── Export ──────────────────────────────────────────────────────────
+
+async function handleExportChat(format: "json" | "markdown"): Promise<void> {
+  if (!mainWindow || !session) return;
+
+  const messages = session.messages;
+  if (!messages || messages.length === 0) {
+    sendStatus("ready", "No messages to export");
+    return;
+  }
+
+  const ext = format === "json" ? "json" : "md";
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: `Export Chat as ${format === "json" ? "JSON" : "Markdown"}`,
+    defaultPath: `pi-chat-${new Date().toISOString().slice(0, 10)}.${ext}`,
+    filters: [
+      { name: format === "json" ? "JSON" : "Markdown", extensions: [ext] },
+    ],
+  });
+
+  if (result.canceled || !result.filePath) return;
+
+  try {
+    let content: string;
+    if (format === "json") {
+      content = JSON.stringify(messages, null, 2);
+    } else {
+      content = messagesToMarkdown(messages);
+    }
+    fs.writeFileSync(result.filePath, content, "utf-8");
+    sendStatus("ready", `Chat exported to ${result.filePath}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    sendStatus("error", `Export failed: ${msg}`);
+  }
+}
+
+function messagesToMarkdown(messages: any[]): string {
+  const lines: string[] = ["# Pi Desktop Chat Export", "", `Exported: ${new Date().toISOString()}`, ""];
+
+  for (const msg of messages) {
+    if (msg.role === "user") {
+      lines.push("## 👤 User", "");
+      const text = typeof msg.content === "string"
+        ? msg.content
+        : Array.isArray(msg.content)
+          ? msg.content.filter((c: any) => c.type === "text").map((c: any) => c.text || "").join("\n")
+          : String(msg.content || "");
+      lines.push(text, "");
+    } else if (msg.role === "assistant") {
+      lines.push("## 🤖 Pi", "");
+      for (const block of msg.content || []) {
+        if (block.type === "text") {
+          lines.push(block.text, "");
+        } else if (block.type === "thinking") {
+          lines.push("<details><summary>💭 Thinking</summary>", "");
+          lines.push(block.thinking, "");
+          lines.push("</details>", "");
+        } else if (block.type === "toolCall") {
+          lines.push(`<details><summary>🔧 ${block.name}</summary>`, "");
+          lines.push("```", block.arguments || "", "```", "");
+          lines.push("</details>", "");
+        }
+      }
+    } else if (msg.role === "toolResult") {
+      const output = (msg.content || []).map((c: any) => c.text || "").join("\n");
+      lines.push(`<details><summary>📄 ${msg.toolName || "Tool"} result</summary>`, "");
+      lines.push("```", output, "```", "");
+      lines.push("</details>", "");
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// ─── Session history ─────────────────────────────────────────────────
+
+interface SessionHistoryEntry {
+  filename: string;
+  id: string;
+  timestamp: string;
+  cwd: string;
+  messageCount: number;
+}
+
+function getSessionHistoryDir(): string {
+  // Normalize workingDir to match SessionManager's directory naming
+  const normalized = workingDir.replace(/\/+$/, "");
+  const safeName = normalized.replace(/\//g, "--").replace(/^--/, "--");
+  return path.join(os.homedir(), ".pi", "agent", "sessions", safeName);
+}
+
+async function getSessionHistory(): Promise<SessionHistoryEntry[]> {
+  const dir = getSessionHistoryDir();
+  if (!fs.existsSync(dir)) return [];
+
+  try {
+    const files = fs.readdirSync(dir)
+      .filter(f => f.endsWith(".jsonl"))
+      .sort()
+      .reverse(); // newest first
+
+    const entries: SessionHistoryEntry[] = [];
+    for (const file of files.slice(0, 20)) { // limit to 20
+      try {
+        const content = fs.readFileSync(path.join(dir, file), "utf-8");
+        const lines = content.split("\n").filter(l => l.trim());
+        let header: any = null;
+        let msgCount = 0;
+
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.type === "session") header = parsed;
+            if (parsed.type === "message") msgCount++;
+          } catch { /* skip malformed lines */ }
+        }
+
+        if (header) {
+          entries.push({
+            filename: file,
+            id: header.id || file,
+            timestamp: header.timestamp || file.split("_")[0],
+            cwd: header.cwd || workingDir,
+            messageCount: msgCount,
+          });
+        }
+      } catch { /* skip unreadable files */ }
+    }
+
+    return entries;
+  } catch {
+    return [];
+  }
 }
 
 // ─── IPC handlers ────────────────────────────────────────────────────
@@ -454,6 +711,63 @@ function registerIpc() {
     console.log("[renderer] " + msg);
   });
 
+  // New IPC handlers
+
+  ipcMain.handle(IPC.GET_VERSION, async () => {
+    return app.getVersion();
+  });
+
+  ipcMain.handle(IPC.EXPORT_CHAT, async (_e, format: "json" | "markdown") => {
+    await handleExportChat(format);
+    return { success: true };
+  });
+
+  ipcMain.handle(IPC.GET_SESSION_HISTORY, async () => {
+    return await getSessionHistory();
+  });
+
+  ipcMain.handle(IPC.RESTORE_SESSION, async (_e, sessionFile: string) => {
+    try {
+      const dir = getSessionHistoryDir();
+      const fullPath = path.join(dir, sessionFile);
+      // Validate the file exists and is within the sessions directory
+      if (!fullPath.startsWith(dir) || !fs.existsSync(fullPath)) {
+        return { error: "Session file not found" };
+      }
+      await initSession(workingDir, fullPath);
+      sendStatus("ready", "Session restored");
+      return { success: true };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { error: msg };
+    }
+  });
+}
+
+// ─── Auto-update check ───────────────────────────────────────────────
+
+async function checkForUpdates(): Promise<void> {
+  try {
+    const currentVersion = app.getVersion();
+    const response = await fetch("https://api.github.com/repos/psylsph/pi-desktop/releases/latest");
+    if (!response.ok) return;
+
+    const data = await response.json() as { tag_name?: string; html_url?: string };
+    const latestTag = data.tag_name;
+    if (!latestTag) return;
+
+    const latestVersion = latestTag.replace(/^v/, "");
+    if (latestVersion !== currentVersion && latestVersion > currentVersion) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC.UPDATE_AVAILABLE, {
+          version: latestVersion,
+          url: data.html_url || `https://github.com/psylsph/pi-desktop/releases/tag/${latestTag}`,
+        });
+      }
+    }
+  } catch {
+    // non-critical — network may be unavailable
+  }
 }
 
 // ─── App lifecycle ───────────────────────────────────────────────────
@@ -472,6 +786,9 @@ app.whenReady().then(async () => {
     console.error("Failed to initialize session:", msg);
     sendStatus("error", `Init failed: ${msg}`);
   }
+
+  // Check for updates in the background (non-blocking)
+  checkForUpdates();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

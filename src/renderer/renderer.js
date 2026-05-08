@@ -18,6 +18,9 @@ const btnNewSession = $("btn-new-session");
 const btnOpenDir = $("btn-open-dir");
 const btnSidebarToggle = $("btn-sidebar-toggle");
 const btnCompact = $("btn-compact");
+const btnExportMd = $("btn-export-md");
+const btnExportJson = $("btn-export-json");
+const btnThemeToggle = $("btn-theme-toggle");
 const sidebar = $("sidebar");
 const workingDirEl = $("working-dir");
 const statusDot = $("status-dot");
@@ -27,6 +30,12 @@ const sessionInfoEl = $("session-info");
 const thinkingLevels = $("thinking-levels");
 const modelSelect = $("model-select");
 const toastContainer = $("toast-container");
+const sessionHistoryEl = $("session-history");
+const dropOverlay = $("drop-overlay");
+const updateBanner = $("update-banner");
+const updateBannerText = $("update-banner-text");
+const updateBannerLink = $("update-banner-link");
+const updateBannerClose = $("update-banner-close");
 
 // ─── State ───────────────────────────────────────────────────────────
 
@@ -37,15 +46,88 @@ let streamingText = "";
 let streamingThinking = "";
 let currentToolCalls = new Map();
 let isStreaming = false;
+let appVersion = "0.0.0";
+let currentTheme = "dark";
+
+// ─── Sound effects (Web Audio API) ───────────────────────────────────
+
+let audioCtx = null;
+
+function getAudioContext() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+}
+
+function playBeep(frequency, duration, volume) {
+  try {
+    const ctx = getAudioContext();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.frequency.value = frequency;
+    oscillator.type = "sine";
+    gain.gain.value = volume || 0.1;
+    oscillator.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (duration || 0.2));
+    oscillator.stop(ctx.currentTime + (duration || 0.2));
+  } catch {
+    // non-critical
+  }
+}
+
+function playCompleteSound() {
+  playBeep(880, 0.1, 0.08);
+  setTimeout(() => playBeep(1100, 0.15, 0.08), 120);
+}
+
+function playErrorSound() {
+  playBeep(300, 0.2, 0.08);
+}
+
+// ─── Theme management ────────────────────────────────────────────────
+
+function loadTheme() {
+  try {
+    const saved = localStorage.getItem("pi-desktop-theme");
+    if (saved === "light" || saved === "dark") {
+      currentTheme = saved;
+    }
+  } catch { /* localStorage unavailable */ }
+  applyTheme();
+}
+
+function applyTheme() {
+  document.documentElement.setAttribute("data-theme", currentTheme);
+  const darkIcon = $("theme-icon-dark");
+  const lightIcon = $("theme-icon-light");
+  if (darkIcon && lightIcon) {
+    darkIcon.style.display = currentTheme === "dark" ? "" : "none";
+    lightIcon.style.display = currentTheme === "light" ? "" : "none";
+  }
+}
+
+function toggleTheme() {
+  currentTheme = currentTheme === "dark" ? "light" : "dark";
+  try {
+    localStorage.setItem("pi-desktop-theme", currentTheme);
+  } catch { /* ignore */ }
+  applyTheme();
+}
 
 // ─── Initialization ──────────────────────────────────────────────────
 
 function init() {
+  loadTheme();
   bindButtons();
   bindInput();
   bindThinkingLevels();
   bindModelSelector();
   bindIpcListeners();
+  bindDragDrop();
+  bindUpdateBanner();
   loadInitialState();
 }
 
@@ -56,6 +138,7 @@ function bindButtons() {
     showToast("Starting new session…", "info");
     await api.newSession();
     showToast("New session started", "success");
+    loadSessionHistory();
   });
   btnOpenDir.addEventListener("click", () => api.setWorkingDir());
   btnCompact.addEventListener("click", async () => {
@@ -65,6 +148,17 @@ function bindButtons() {
   btnSidebarToggle.addEventListener("click", () => {
     sidebar.classList.toggle("collapsed");
   });
+  btnExportMd.addEventListener("click", async () => {
+    showToast("Exporting chat as Markdown…", "info");
+    await api.exportChat("markdown");
+    showToast("Chat exported", "success");
+  });
+  btnExportJson.addEventListener("click", async () => {
+    showToast("Exporting chat as JSON…", "info");
+    await api.exportChat("json");
+    showToast("Chat exported", "success");
+  });
+  btnThemeToggle.addEventListener("click", toggleTheme);
 }
 
 function bindInput() {
@@ -119,33 +213,159 @@ function bindIpcListeners() {
   api.onMessagesUpdate(handleMessagesUpdate);
   api.onStatusUpdate(handleStatusUpdate);
   api.onModelsUpdate(handleModelsUpdate);
-  
+
   // Menu event listeners
   api.onToggleSidebar(() => {
     sidebar.classList.toggle("collapsed");
   });
-  
+
   api.onShowShortcuts(showShortcutsDialog);
   api.onShowAbout(showAboutDialog);
+
+  // Update available
+  api.onUpdateAvailable((data) => {
+    if (data && data.version) {
+      updateBannerText.textContent = `Version ${data.version} is available!`;
+      updateBannerLink.href = data.url || "#";
+      updateBanner.style.display = "flex";
+    }
+  });
 }
+
+function bindUpdateBanner() {
+  updateBannerClose.addEventListener("click", () => {
+    updateBanner.style.display = "none";
+  });
+}
+
+// ─── Drag & drop ─────────────────────────────────────────────────────
+
+function bindDragDrop() {
+  let dragCounter = 0;
+
+  document.addEventListener("dragenter", (e) => {
+    e.preventDefault();
+    dragCounter++;
+    if (dragCounter === 1) {
+      dropOverlay.style.display = "flex";
+    }
+  });
+
+  document.addEventListener("dragleave", (e) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter === 0) {
+      dropOverlay.style.display = "none";
+    }
+  });
+
+  document.addEventListener("dragover", (e) => {
+    e.preventDefault();
+  });
+
+  document.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    dropOverlay.style.display = "none";
+
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    const paths = [];
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].path) {
+        paths.push(files[i].path);
+      }
+    }
+
+    if (paths.length > 0) {
+      const text = paths.length === 1
+        ? paths[0]
+        : paths.map(p => `- ${p}`).join("\n");
+      promptInput.value = promptInput.value
+        ? promptInput.value + "\n" + text
+        : text;
+      promptInput.style.height = "auto";
+      promptInput.style.height = Math.min(promptInput.scrollHeight, 200) + "px";
+      promptInput.focus();
+      showToast(`${paths.length} file${paths.length > 1 ? "s" : ""} added`, "info");
+    }
+  });
+}
+
+// ─── Session history ─────────────────────────────────────────────────
+
+async function loadSessionHistory() {
+  try {
+    const history = await api.getSessionHistory();
+    renderSessionHistory(history);
+  } catch (e) {
+    console.error("[renderer] getSessionHistory error:", e);
+  }
+}
+
+function renderSessionHistory(entries) {
+  sessionHistoryEl.innerHTML = "";
+
+  if (!entries || entries.length === 0) {
+    sessionHistoryEl.innerHTML = '<div class="session-history-empty">No previous sessions</div>';
+    return;
+  }
+
+  for (const entry of entries) {
+    const item = document.createElement("button");
+    item.className = "session-history-item";
+
+    const date = new Date(entry.timestamp);
+    const dateStr = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const timeStr = date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    const cwdShort = (entry.cwd || "").replace(/^\/home\/[^/]+/, "~").split("/").pop() || entry.cwd;
+
+    item.innerHTML = `
+      <div class="session-history-date">${dateStr} ${timeStr}</div>
+      <div class="session-history-meta">${cwdShort} • ${entry.messageCount} msgs</div>
+    `;
+
+    item.addEventListener("click", async () => {
+      showToast("Restoring session…", "info");
+      const result = await api.restoreSession(entry.filename);
+      if (result.error) {
+        showToast(result.error, "error");
+      } else {
+        showToast("Session restored", "success");
+        loadSessionHistory();
+      }
+    });
+
+    sessionHistoryEl.appendChild(item);
+  }
+}
+
+// ─── Initial state ───────────────────────────────────────────────────
 
 async function loadInitialState() {
   try {
+    appVersion = await api.getVersion() || "0.0.0";
+  } catch (e) { console.error("[renderer] getVersion error:", e); }
+
+  try {
     const state = await api.getState();
     if (state) handleStateUpdate(state);
-  } catch (e) { console.error('[renderer] getState error:', e); }
+  } catch (e) { console.error("[renderer] getState error:", e); }
 
   try {
     const models = await api.getModels();
     if (models && models.length > 0) {
       handleModelsUpdate(models);
     }
-  } catch (e) { console.error('[renderer] getModels error:', e); }
+  } catch (e) { console.error("[renderer] getModels error:", e); }
 
   try {
     const msgs = await api.getMessages();
     if (msgs && msgs.length > 0) handleMessagesUpdate(msgs);
-  } catch (e) { console.error('[renderer] getMessages error:', e); }
+  } catch (e) { console.error("[renderer] getMessages error:", e); }
+
+  loadSessionHistory();
 }
 
 // ─── Send prompt ─────────────────────────────────────────────────────
@@ -184,6 +404,7 @@ function handleSessionEvent(event) {
       isStreaming = false;
       finalizeStreaming();
       updateStreamUI(false);
+      playCompleteSound();
       promptInput.focus();
       break;
 
@@ -277,6 +498,7 @@ function handleSessionEvent(event) {
     case "error":
       showToast(event.message || "Unknown error", "error");
       appendSystemMessage(event.message || "Unknown error");
+      playErrorSound();
       promptInput.focus();
       break;
   }
@@ -431,6 +653,7 @@ function appendAssistantMessage(msg) {
       const bubble = document.createElement("div");
       bubble.className = "msg-bubble";
       bubble.innerHTML = renderMarkdown(block.text);
+      addCodeBlockButtons(bubble);
       div.appendChild(bubble);
     } else if (block.type === "thinking") {
       const thinkDiv = document.createElement("div");
@@ -521,6 +744,54 @@ function appendSystemMessage(text) {
   scrollToBottom();
 }
 
+// ─── Code block buttons (copy, line numbers) ─────────────────────────
+
+function addCodeBlockButtons(container) {
+  const preBlocks = container.querySelectorAll("pre");
+  preBlocks.forEach((pre) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "code-block-wrapper";
+
+    // Add line numbers
+    const code = pre.querySelector("code") || pre;
+    const text = code.textContent || "";
+    const lines = text.split("\n");
+    // Remove trailing empty line
+    if (lines.length > 0 && lines[lines.length - 1].trim() === "") {
+      lines.pop();
+    }
+
+    const lineNumbersDiv = document.createElement("div");
+    lineNumbersDiv.className = "code-line-numbers";
+    lineNumbersDiv.innerHTML = lines.map((_, i) =>
+      `<span class="line-num">${i + 1}</span>`
+    ).join("");
+
+    // Copy button
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "code-copy-btn";
+    copyBtn.textContent = "Copy";
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        copyBtn.textContent = "Copied!";
+        setTimeout(() => { copyBtn.textContent = "Copy"; }, 2000);
+      } catch {
+        copyBtn.textContent = "Failed";
+        setTimeout(() => { copyBtn.textContent = "Copy"; }, 2000);
+      }
+    });
+
+    // Build the wrapper
+    pre.parentNode.insertBefore(wrapper, pre);
+    wrapper.appendChild(pre);
+    wrapper.appendChild(lineNumbersDiv);
+    wrapper.appendChild(copyBtn);
+
+    pre.classList.add("code-block-content");
+  });
+}
+
 // ─── Streaming message rendering ─────────────────────────────────────
 
 let streamingDiv = null;
@@ -602,6 +873,11 @@ function finalizeStreaming() {
   const cursor = streamingTextEl?.querySelector(".streaming-cursor");
   if (cursor) cursor.remove();
 
+  // Add code block buttons to finalized message
+  if (streamingTextEl) {
+    addCodeBlockButtons(streamingTextEl);
+  }
+
   if (streamingDiv) {
     streamingDiv.classList.remove("streaming");
     streamingDiv.removeAttribute("id");
@@ -668,12 +944,12 @@ function showShortcutsDialog() {
       </div>
     </div>
   `;
-  
+
   document.body.appendChild(dialog);
-  
+
   const closeBtn = dialog.querySelector(".modal-close");
   closeBtn.addEventListener("click", () => dialog.remove());
-  
+
   dialog.addEventListener("click", (e) => {
     if (e.target === dialog) dialog.remove();
   });
@@ -696,7 +972,7 @@ function showAboutDialog() {
           </svg>
         </div>
         <h3 style="text-align: center; margin-bottom: 10px;">Pi Desktop</h3>
-        <p style="text-align: center; color: #9aa5ce; margin-bottom: 20px;">Version 0.1.0</p>
+        <p style="text-align: center; color: var(--text-secondary); margin-bottom: 20px;">Version ${escapeHtml(appVersion)}</p>
         <p style="text-align: center; margin-bottom: 10px;">
           A cross-platform desktop application for the pi coding agent.
         </p>
@@ -704,20 +980,20 @@ function showAboutDialog() {
           Built with Electron, TypeScript, and the pi SDK.
         </p>
         <div style="text-align: center;">
-          <a href="https://github.com/psylsph/pi-desktop" target="_blank" style="color: #7aa2f7;">GitHub Repository</a>
+          <a href="https://github.com/psylsph/pi-desktop" target="_blank" style="color: var(--accent);">GitHub Repository</a>
         </div>
-        <p style="text-align: center; color: #565f89; margin-top: 20px; font-size: 0.9em;">
-          © 2025 Stuart Harding • MIT License
+        <p style="text-align: center; color: var(--text-muted); margin-top: 20px; font-size: 0.9em;">
+          © ${new Date().getFullYear()} Stuart Harding • MIT License
         </p>
       </div>
     </div>
   `;
-  
+
   document.body.appendChild(dialog);
-  
+
   const closeBtn = dialog.querySelector(".modal-close");
   closeBtn.addEventListener("click", () => dialog.remove());
-  
+
   dialog.addEventListener("click", (e) => {
     if (e.target === dialog) dialog.remove();
   });
@@ -747,16 +1023,62 @@ function renderMarkdown(text) {
 
   let html = escapeHtml(text);
 
+  // Fenced code blocks (must come before inline patterns)
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
-    return `<pre><code class="lang-${lang}">${code}</code></pre>`;
+    const lines = code.split("\n");
+    if (lines.length > 0 && lines[lines.length - 1].trim() === "") lines.pop();
+    const lineNums = lines.map((_, i) =>
+      `<span class="line-num">${i + 1}</span>`
+    ).join("");
+    return `<div class="code-block-wrapper"><button class="code-copy-btn" onclick="this.__copy(this)">Copy</button><div class="code-line-numbers">${lineNums}</div><pre class="code-block-content"><code class="lang-${lang}">${code}</code></pre></div>`;
   });
 
+  // Inline code (before other inline patterns)
   html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+  // Headers
+  html = html.replace(/^#### (.+)$/gm, "<h4>$1</h4>");
+  html = html.replace(/^### (.+)$/gm, "<h3>$1</h3>");
+  html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
+  html = html.replace(/^# (.+)$/gm, "<h1>$1</h1>");
+
+  // Horizontal rules
+  html = html.replace(/^---+$/gm, "<hr>");
+
+  // Blockquotes
+  html = html.replace(/^&gt; (.+)$/gm, "<blockquote>$1</blockquote>");
+
+  // Bold and italic
   html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
 
+  // Links
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+  // Unordered lists
+  html = html.replace(/^[\-\*] (.+)$/gm, "<li>$1</li>");
+  html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, "<ul>$1</ul>");
+
+  // Ordered lists
+  html = html.replace(/^\d+\. (.+)$/gm, "<li>$1</li>");
+
   return html;
 }
+
+// Global copy handler for inline code block buttons from renderMarkdown
+window.__copy = async function(btn) {
+  const pre = btn.parentElement.querySelector("pre");
+  if (pre) {
+    try {
+      await navigator.clipboard.writeText(pre.textContent || "");
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = "Copy"; }, 2000);
+    } catch {
+      btn.textContent = "Failed";
+      setTimeout(() => { btn.textContent = "Copy"; }, 2000);
+    }
+  }
+};
 
 // ─── Start ───────────────────────────────────────────────────────────
 
