@@ -184,6 +184,7 @@ function handleSessionEvent(event) {
       isStreaming = false;
       finalizeStreaming();
       updateStreamUI(false);
+      promptInput.focus();
       break;
 
     case "message_start":
@@ -276,6 +277,7 @@ function handleSessionEvent(event) {
     case "error":
       showToast(event.message || "Unknown error", "error");
       appendSystemMessage(event.message || "Unknown error");
+      promptInput.focus();
       break;
   }
 
