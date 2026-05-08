@@ -1,0 +1,64 @@
+{
+  "name": "pi-desktop",
+  "version": "0.1.0",
+  "description": "Cross-platform desktop app for the pi coding agent",
+  "author": {
+    "name": "Stuart Harding",
+    "email": "psylsph@gmail.com"
+  },
+  "homepage": "https://github.com/psylsph/pi-desktop",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "build": "tsc && npm run copy-assets",
+    "copy-assets": "mkdir -p dist/main/renderer && cp -r src/renderer/* dist/main/renderer/ && cp src/main/preload.cjs dist/main/preload.cjs",
+    "start": "npm run build && electron .",
+    "dev": "npm run build && electron .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:win": "npm run build && electron-builder --win"
+  },
+  "build": {
+    "appId": "dev.pi.desktop",
+    "productName": "Pi-Desktop",
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "linux": {
+      "category": "Development",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    }
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "latest"
+  },
+  "devDependencies": {
+    "electron": "^36.2.0",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.5"
+  }
+}
