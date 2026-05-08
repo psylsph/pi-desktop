@@ -119,6 +119,14 @@ function bindIpcListeners() {
   api.onMessagesUpdate(handleMessagesUpdate);
   api.onStatusUpdate(handleStatusUpdate);
   api.onModelsUpdate(handleModelsUpdate);
+  
+  // Menu event listeners
+  api.onToggleSidebar(() => {
+    sidebar.classList.toggle("collapsed");
+  });
+  
+  api.onShowShortcuts(showShortcutsDialog);
+  api.onShowAbout(showAboutDialog);
 }
 
 async function loadInitialState() {
@@ -634,6 +642,82 @@ function updateThinkingUI(level) {
   const btns = thinkingLevels.querySelectorAll(".level-btn");
   btns.forEach((b) => {
     b.classList.toggle("active", b.dataset.level === level);
+  });
+}
+
+function showShortcutsDialog() {
+  const dialog = document.createElement("div");
+  dialog.className = "modal-overlay";
+  dialog.innerHTML = `
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Keyboard Shortcuts</h2>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-content">
+        <table class="shortcuts-table">
+          <tr><td><kbd>Enter</kbd></td><td>Send message</td></tr>
+          <tr><td><kbd>Shift</kbd> + <kbd>Enter</kbd></td><td>New line</td></tr>
+          <tr><td><kbd>Escape</kbd></td><td>Abort current request</td></tr>
+          <tr><td><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>N</kbd></td><td>New session</td></tr>
+          <tr><td><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>O</kbd></td><td>Open project</td></tr>
+          <tr><td><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>B</kbd></td><td>Toggle sidebar</td></tr>
+        </table>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(dialog);
+  
+  const closeBtn = dialog.querySelector(".modal-close");
+  closeBtn.addEventListener("click", () => dialog.remove());
+  
+  dialog.addEventListener("click", (e) => {
+    if (e.target === dialog) dialog.remove();
+  });
+}
+
+function showAboutDialog() {
+  const dialog = document.createElement("div");
+  dialog.className = "modal-overlay";
+  dialog.innerHTML = `
+    <div class="modal">
+      <div class="modal-header">
+        <h2>About Pi Desktop</h2>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-content">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="2" style="color: #7aa2f7;">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M8 12h8M12 8v8"/>
+          </svg>
+        </div>
+        <h3 style="text-align: center; margin-bottom: 10px;">Pi Desktop</h3>
+        <p style="text-align: center; color: #9aa5ce; margin-bottom: 20px;">Version 0.1.0</p>
+        <p style="text-align: center; margin-bottom: 10px;">
+          A cross-platform desktop application for the pi coding agent.
+        </p>
+        <p style="text-align: center; margin-bottom: 20px;">
+          Built with Electron, TypeScript, and the pi SDK.
+        </p>
+        <div style="text-align: center;">
+          <a href="https://github.com/psylsph/pi-desktop" target="_blank" style="color: #7aa2f7;">GitHub Repository</a>
+        </div>
+        <p style="text-align: center; color: #565f89; margin-top: 20px; font-size: 0.9em;">
+          © 2025 Stuart Harding • MIT License
+        </p>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(dialog);
+  
+  const closeBtn = dialog.querySelector(".modal-close");
+  closeBtn.addEventListener("click", () => dialog.remove());
+  
+  dialog.addEventListener("click", (e) => {
+    if (e.target === dialog) dialog.remove();
   });
 }
 

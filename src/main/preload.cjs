@@ -49,6 +49,22 @@ const api = {
     ipcRenderer.on('session:status', handler);
     return () => ipcRenderer.removeListener('session:status', handler);
   },
+  // Menu event listeners
+  onToggleSidebar: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('toggle-sidebar', handler);
+    return () => ipcRenderer.removeListener('toggle-sidebar', handler);
+  },
+  onShowShortcuts: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('show-shortcuts', handler);
+    return () => ipcRenderer.removeListener('show-shortcuts', handler);
+  },
+  onShowAbout: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('show-about', handler);
+    return () => ipcRenderer.removeListener('show-about', handler);
+  },
 };
 
 contextBridge.exposeInMainWorld('piDesktop', api);

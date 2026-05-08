@@ -8,6 +8,8 @@ import {
   BrowserWindow,
   ipcMain,
   dialog,
+  Menu,
+  shell,
   type BrowserWindow as BrowserWindowType,
 } from "electron";
 import * as path from "node:path";
@@ -34,6 +36,155 @@ let authStorage: ReturnType<typeof AuthStorage.create> | null = null;
 let modelRegistry: ModelRegistryType | null = null;
 
 // ─── Window creation ─────────────────────────────────────────────────
+
+function createMenu() {
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: "File",
+      submenu: [
+        {
+          label: "New Session",
+          accelerator: "CmdOrCtrl+N",
+          click: async () => {
+            if (mainWindow) {
+              await initSession(workingDir);
+              sendStatus("ready", "New session started");
+            }
+          },
+        },
+        { type: "separator" },
+        {
+          label: "Open Project...",
+          accelerator: "CmdOrCtrl+O",
+          click: async () => {
+            if (mainWindow) {
+              const result = await dialog.showOpenDialog(mainWindow, {
+                properties: ["openDirectory"],
+                title: "Select Working Directory",
+                defaultPath: workingDir,
+              });
+              if (!result.canceled && result.filePaths.length > 0) {
+                workingDir = result.filePaths[0];
+                await initSession(workingDir);
+                sendStatus("ready", `Working directory: ${workingDir}`);
+              }
+            }
+          },
+        },
+        { type: "separator" },
+        { role: "quit", label: "Exit" },
+      ],
+    },
+    {
+      label: "Edit",
+      submenu: [
+        { role: "undo", label: "Undo" },
+        { role: "redo", label: "Redo" },
+        { type: "separator" },
+        { role: "cut", label: "Cut" },
+        { role: "copy", label: "Copy" },
+        { role: "paste", label: "Paste" },
+        { role: "selectAll", label: "Select All" },
+      ],
+    },
+    {
+      label: "View",
+      submenu: [
+        {
+          label: "Toggle Sidebar",
+          accelerator: "CmdOrCtrl+B",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("toggle-sidebar");
+            }
+          },
+        },
+        { type: "separator" },
+        { role: "reload", label: "Reload" },
+        { role: "forceReload", label: "Force Reload" },
+        { role: "toggleDevTools", label: "Toggle Developer Tools" },
+        { type: "separator" },
+        { role: "resetZoom", label: "Reset Zoom" },
+        { role: "zoomIn", label: "Zoom In" },
+        { role: "zoomOut", label: "Zoom Out" },
+        { type: "separator" },
+        { role: "togglefullscreen", label: "Toggle Full Screen" },
+      ],
+    },
+    {
+      label: "Help",
+      submenu: [
+        {
+          label: "Documentation",
+          click: async () => {
+            await shell.openExternal("https://github.com/psylsph/pi-desktop#readme");
+          },
+        },
+        {
+          label: "Keyboard Shortcuts",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("show-shortcuts");
+            }
+          },
+        },
+        {
+          label: "Report Issue...",
+          click: async () => {
+            await shell.openExternal("https://github.com/psylsph/pi-desktop/issues");
+          },
+        },
+        {
+          label: "Check for Updates",
+          click: async () => {
+            await shell.openExternal("https://github.com/psylsph/pi-desktop/releases");
+          },
+        },
+        { type: "separator" },
+        {
+          label: "About Pi Desktop",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("show-about");
+            }
+          },
+        },
+      ],
+    },
+  ];
+
+  // macOS app menu tweaks
+  if (process.platform === "darwin") {
+    template.unshift({
+      label: app.getName(),
+      submenu: [
+        { role: "about", label: "About Pi Desktop" },
+        { type: "separator" },
+        { role: "services", label: "Services" },
+        { type: "separator" },
+        { role: "hide", label: "Hide Pi Desktop" },
+        { role: "hideOthers", label: "Hide Others" },
+        { role: "unhide", label: "Show All" },
+        { type: "separator" },
+        { role: "quit", label: "Quit Pi Desktop" },
+      ],
+    });
+
+    // Window menu
+    template.splice(3, 0, {
+      role: "window",
+      submenu: [
+        { role: "minimize", label: "Minimize" },
+        { role: "zoom", label: "Zoom" },
+        { type: "separator" },
+        { role: "front", label: "Bring All to Front" },
+      ],
+    });
+  }
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -309,6 +460,7 @@ function registerIpc() {
 
 app.whenReady().then(async () => {
   registerIpc();
+  createMenu();
   createWindow();
 
   // Initialize the session synchronously (awaited) so that modelRegistry
