@@ -69,6 +69,28 @@ pi config set ANTHROPIC_API_KEY your_key_here
 npm run dev
 ```
 
+## 🆚 Comparison
+
+| Feature | Pi Desktop | VS Code Extension | Terminal CLI |
+|---------|-----------|-------------------|--------------|
+| **Interface** | Native desktop app with dedicated UI | Integrated into VS Code sidebar | Terminal-based (TUI) |
+| **Performance** | Lightweight, standalone process | Shares VS Code resources | Minimal overhead |
+| **Streaming** | Real-time with markdown rendering | Real-time but editor-bound | Real-time with ansi formatting |
+| **Tool Visualization** | Dedicated panel with status indicators | Inline in chat output | Inline in terminal |
+| **Session Management** | GUI buttons and menu items | VS Code command palette | CLI commands |
+| **Multi-window** | Multiple instances possible | Single instance | Multiple terminals |
+| **Thinking Blocks** | Collapsible panels | Inline display | Inline display |
+| **Distraction-free** | Focused coding environment | Editor integration | Minimalist |
+| **Setup** | npm install + run | VS Code extension install | npm install -g |
+| **Best for** | Dedicated coding sessions | Editor workflow | Terminal power users |
+
+**Why Pi Desktop?**
+- **Focused workflow**: Dedicated app means no context switching from your editor
+- **Better UX**: Native menus, keyboard shortcuts, and modal dialogs
+- **Always ready**: No need to open VS Code just to chat with your agent
+- **Visual feedback**: Rich tool call visualization and status updates
+- **Cross-platform**: Works on Windows, macOS, and Linux with native builds
+
 ## 🏗️ Architecture
 
 ```
