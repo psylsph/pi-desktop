@@ -5,10 +5,14 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         include:
@@ -33,6 +37,12 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Install Linux dependencies for electron-builder
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools rpm
 
       - name: Build for ${{ matrix.platform }}
         run: npm run dist:${{ matrix.platform == 'win32' && 'win' || matrix.platform }}

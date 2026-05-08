@@ -10,6 +10,7 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         node-version: [18.x, 20.x]
@@ -31,13 +32,6 @@ jobs:
 
       - name: Run tests
         run: npm test
-
-      - name: Upload coverage
-        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage/lcov.info
-          fail_ci_if_error: false
 
   lint:
     runs-on: ubuntu-latest
@@ -61,6 +55,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: [test, lint]
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
@@ -79,5 +74,13 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Install Linux dependencies for electron-builder
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools rpm
+
       - name: Pack (no installer)
         run: npm run pack
+        env:
+          ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
