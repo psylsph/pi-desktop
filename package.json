@@ -12,7 +12,7 @@
   "main": "dist/main/main.js",
   "scripts": {
     "build": "tsc && npm run copy-assets",
-    "copy-assets": "mkdir -p dist/main/renderer && cp -r src/renderer/* dist/main/renderer/ && cp src/main/preload.cjs dist/main/preload.cjs",
+    "copy-assets": "node scripts/copy-assets.mjs",
     "start": "npm run build && electron .",
     "dev": "npm run build && electron .",
     "test": "vitest run",
@@ -53,7 +53,7 @@
     }
   },
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "latest"
+    "@earendil-works/pi-coding-agent": "0.74.0"
   },
   "devDependencies": {
     "electron": "^36.2.0",

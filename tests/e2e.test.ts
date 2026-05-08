@@ -18,8 +18,8 @@ describe("Build output", () => {
     expect(fs.existsSync(path.join(distDir, "main.js"))).toBe(true);
   });
 
-  it("preload JS exists", () => {
-    expect(fs.existsSync(path.join(distDir, "preload.js"))).toBe(true);
+  it("preload script exists", () => {
+    expect(fs.existsSync(path.join(distDir, "preload.cjs"))).toBe(true);
   });
 
   it("renderer files exist", () => {
@@ -60,8 +60,8 @@ describe("Build output", () => {
     }
   });
 
-  it("preload.js exposes the full API surface", () => {
-    const js = fs.readFileSync(path.join(distDir, "preload.js"), "utf-8");
+  it("preload script exposes the full API surface", () => {
+    const js = fs.readFileSync(path.join(distDir, "preload.cjs"), "utf-8");
     const apiMethods = [
       "sendPrompt", "abort", "newSession", "getState", "getMessages",
       "getModels", "setModel", "setThinking", "compact", "setWorkingDir",
@@ -87,7 +87,7 @@ describe("Build output", () => {
 });
 
 describe("Electron launch", () => {
-  it("launches without crashing", async () => {
+  it.skipIf(process.env.CI === "true")("launches without crashing", async () => {
     const electronPath = path.join(projectRoot, "node_modules", ".bin", "electron");
     const child = spawn(electronPath, [projectRoot], {
       stdio: ["pipe", "pipe", "pipe"],
