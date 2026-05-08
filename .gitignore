@@ -4,3 +4,5 @@ out/
 *.tsbuildinfo
 .DS_Store
 Thumbs.db
+*.sh
+
