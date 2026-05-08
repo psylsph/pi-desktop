@@ -13,7 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export conversations
 - Plugin system
 
-## [0.1.0] - 2025-01-08
+## [0.2.0] - 2025-05-08
+
+### Added
+- Native application menu (File, Edit, View, Help)
+- Help menu with Documentation, Keyboard Shortcuts, Report Issue, Check for Updates, About
+- Keyboard shortcuts dialog (Cmd/Ctrl+N, O, B)
+- About dialog with version info and links
+- Comparison table (Pi Desktop vs VS Code Extension vs CLI)
+- GitHub Actions CI workflow (tests on Linux, macOS, Windows)
+- GitHub Actions release workflow (auto-builds on tags)
+- Issue templates (bug report, feature request)
+- Pull request template with checklist
+- Contributing guidelines
+- Enhanced README with badges, better formatting, and quick start
+
+### Changed
+- Improved README with CI badge, comparison section, and feature list
+- Updated Help menu with functional dialog boxes
+
+## [0.1.0] - 2025-05-08
 
 ### Added
 - Initial release of Pi Desktop
@@ -42,5 +61,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pull request template
 - MIT License
 
-[Unreleased]: https://github.com/psylsph/pi-desktop/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/psylsph/pi-desktop/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/psylsph/pi-desktop/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/psylsph/pi-desktop/releases/tag/v0.1.0
