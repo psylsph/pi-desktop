@@ -1,5 +1,6 @@
 # Pi Desktop
 
+[![CI](https://github.com/psylsph/pi-desktop/workflows/CI/badge.svg)](https://github.com/psylsph/pi-desktop/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
 [![Electron](https://img.shields.io/badge/Electron-36.2.0-9FE349)](https://www.electronjs.org/)
